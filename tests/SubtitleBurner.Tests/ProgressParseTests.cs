@@ -46,4 +46,14 @@ public class ProgressParseTests
         Assert.True(SubtitleBurner.Ffmpeg.SubtitleBurner.TryParseProgress("out_time_us=999000000", 10.0, out var v));
         Assert.Equal(1.0, v);
     }
+
+    [Fact]
+    public void DetectsRemovedOptionError() // ffmpeg 9 dropped -filter_complex_script
+    {
+        Assert.True(SubtitleBurner.Ffmpeg.SubtitleBurner.IsMissingOptionError(
+            "blah\nUnrecognized option 'filter_complex_script'.\nError splitting the argument list",
+            "filter_complex_script"));
+        Assert.False(SubtitleBurner.Ffmpeg.SubtitleBurner.IsMissingOptionError(
+            "some other failure", "filter_complex_script"));
+    }
 }

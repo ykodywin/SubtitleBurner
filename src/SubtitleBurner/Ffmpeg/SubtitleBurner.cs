@@ -121,6 +121,15 @@ public static class SubtitleBurner
 
         var (exitCode, stderrTail) = await RunFfmpegAsync(
             ffmpeg, args, tempDir, info.DurationSeconds, progress, ct);
+        if (exitCode != 0 && IsMissingOptionError(stderrTail, "filter_complex_script"))
+        {
+            // ffmpeg 9 removed -filter_complex_script; since 7.1 an option value can
+            // be read from a file via the -/option syntax — same sidestep of the
+            // 32K command-line limit
+            args[args.IndexOf("-filter_complex_script")] = "-/filter_complex";
+            (exitCode, stderrTail) = await RunFfmpegAsync(
+                ffmpeg, args, tempDir, info.DurationSeconds, progress, ct);
+        }
         if (exitCode != 0)
             throw new SubtitleBurnerException($"ffmpeg exited with {exitCode}. Stderr tail: {stderrTail}");
 
@@ -208,6 +217,10 @@ public static class SubtitleBurner
         progress?.Report(1.0);
         return (process.ExitCode, stderr.ToString().Trim());
     }
+
+    /// <summary>True when ffmpeg rejected an option name outright (version gap).</summary>
+    internal static bool IsMissingOptionError(string stderrTail, string option)
+        => stderrTail.Contains($"Unrecognized option '{option}'", StringComparison.Ordinal);
 
     /// <summary>
     /// Parses one line of <c>ffmpeg -progress</c> output into a 0..1 fraction.

@@ -98,7 +98,7 @@ public class BurnIntegrationTests : IDisposable
             src, outPath, EightWords,
             new SubtitleStyle(Preset: "capcut"),
             new BurnOptions(FfmpegPath: _ffmpeg),
-            new Progress<double>(p => progress.Add(p)));
+            new SyncProgress(progress));
 
         Assert.True(File.Exists(outPath));
         Assert.Equal(8, result.OverlayCount);
@@ -174,5 +174,12 @@ public class BurnIntegrationTests : IDisposable
                 EightWords,
                 new SubtitleStyle(),
                 new BurnOptions(FfmpegPath: _ffmpeg)));
+    }
+
+    // Progress<T> posts callbacks to the sync context asynchronously — flaky in
+    // tests (fast runners assert before the callback lands). Synchronous instead.
+    private sealed class SyncProgress(List<double> target) : IProgress<double>
+    {
+        public void Report(double value) => target.Add(value);
     }
 }
