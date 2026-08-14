@@ -21,9 +21,16 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      # SkiaSharp needs fontconfig + at least one TTF; ubuntu runners have neither
+      # for the managed font manager (text silently doesn't render otherwise)
+      - name: fonts (linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y fontconfig fonts-dejavu-core
+
       # Burn integration tests resolve ffmpeg via PATH; it is preinstalled on
       # all three GitHub runner images
       - name: ffmpeg available
+        shell: bash
         run: ffmpeg -version | head -1
 
       - name: test

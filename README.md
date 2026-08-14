@@ -58,6 +58,12 @@ await SubtitleBurner.Ffmpeg.SubtitleBurner.BurnAsync(
 | `capcut` | Yellow box behind the current word, black text |
 | `opus` | OpusClip: every word in a dark translucent box, current word's box turns yellow |
 
+## Requirements
+
+- .NET 10+
+- ffmpeg on PATH (or `FFMPEG_PATH`) for `BurnAsync`
+- Linux: `fontconfig` + any TTF font (e.g. `fonts-dejavu-core`) — without them SkiaSharp can't resolve typefaces and text won't render
+
 ## License
 
 MIT
