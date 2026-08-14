@@ -27,10 +27,16 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y fontconfig fonts-dejavu-core
 
-      # Burn integration tests resolve ffmpeg via PATH (not preinstalled on runners)
+      # Burn integration tests resolve ffmpeg via PATH. Pinned to 8.0 (matches dev
+      # machines); setup-ffmpeg has no arm64 macOS binaries, so brew there
       - uses: FedericoCarboni/setup-ffmpeg@v3
+        if: runner.os != 'macOS'
         with:
-          ffmpeg-version: release
+          ffmpeg-version: "8.0"
+
+      - name: ffmpeg (macos)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
 
       - name: ffmpeg available
         shell: bash
