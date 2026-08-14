@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>SubtitleBurner</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>Yahor</Authors>
     <Description>CapCut-style burned-in subtitles for .NET: SkiaSharp karaoke/boxed/pop rendering + ffmpeg pipeline in one call.</Description>
     <PackageTags>subtitles;karaoke;ffmpeg;skiasharp;capcut;video</PackageTags>

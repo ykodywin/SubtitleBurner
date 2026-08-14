@@ -10,7 +10,7 @@ words → SkiaSharp PNG overlays → ffmpeg filter_complex → out.mp4
 
 - **Karaoke word highlighting** — boxed (CapCut-style, box jumps word to word) or pop (words appear as spoken)
 - **Regular block subtitles** — wrapped lines with optional rounded box
-- **5 built-in presets**: `default`, `hormozi`, `minimal`, `neon`, `capcut` — plus per-call overrides (font, scale, colors, alignment)
+- **6 built-in presets**: `default`, `hormozi`, `minimal`, `neon`, `capcut`, `opus` — plus per-call overrides (font, scale, colors, alignment)
 - **Keyword highlight + emoji** — accent color (and emoji) on the words you choose via `Func<string, bool>`
 - **Speaker colors** — configurable palette for diarized transcripts
 - **Three layers, use what you need**:
@@ -56,6 +56,7 @@ await SubtitleBurner.Ffmpeg.SubtitleBurner.BurnAsync(
 | `minimal` | Smaller, thin outline, bottom |
 | `neon` | White fill, thick green glow |
 | `capcut` | Yellow box behind the current word, black text |
+| `opus` | OpusClip: every word in a dark translucent box, current word's box turns yellow |
 
 ## License
 

@@ -41,10 +41,10 @@ public class SubtitleStylesTests
     }
 
     [Fact]
-    public void Names_ContainsAllFivePresets()
+    public void Names_ContainsAllSixPresets()
     {
         Assert.Equal(
-            new[] { "default", "hormozi", "minimal", "neon", "capcut" },
+            new[] { "default", "hormozi", "minimal", "neon", "capcut", "opus" },
             SubtitleStyles.Names);
     }
 }

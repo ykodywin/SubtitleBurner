@@ -15,6 +15,8 @@ namespace SubtitleBurner;
 /// <param name="Uppercase">Render all text uppercase (Hormozi-style).</param>
 /// <param name="OutlineScale">1.0 = default outline; box padding when <paramref name="UseBox"/>.</param>
 /// <param name="UseBox">CapCut-style: opaque box behind text — whole line (regular) or current word (karaoke).</param>
+/// <param name="WordBoxes">OpusClip-style: every word in its own dark translucent box (karaoke, with <paramref name="UseBox"/>).</param>
+/// <param name="WordBoxColor">ASS colour of the per-word boxes when <paramref name="WordBoxes"/> is on.</param>
 public record SubtitleStylePreset(
     string Name,
     string RegularPrimary,
@@ -25,7 +27,9 @@ public record SubtitleStylePreset(
     int Alignment,
     bool Uppercase,
     double OutlineScale,
-    bool UseBox = false);
+    bool UseBox = false,
+    bool WordBoxes = false,
+    string WordBoxColor = "&H99000000");
 
 /// <summary>
 /// Built-in subtitle presets. Resolve by name via <see cref="Resolve"/>.
@@ -56,8 +60,15 @@ public static class SubtitleStyles
     public static readonly SubtitleStylePreset CapCut = new(
         "capcut", "&H00FFFFFF", "&H0000FFFF", "&H96000000", -1, 1.0, 2, false, 3.0, true);
 
+    /// <summary>
+    /// OpusClip: every word sits in its own dark translucent rounded box; the
+    /// currently spoken word's box turns yellow with black text.
+    /// </summary>
+    public static readonly SubtitleStylePreset Opus = new(
+        "opus", "&H00FFFFFF", "&H0000FFFF", "&H96000000", -1, 1.0, 2, false, 3.0, true, true);
+
     /// <summary>All built-in preset names.</summary>
-    public static readonly string[] Names = [Default.Name, Hormozi.Name, Minimal.Name, Neon.Name, CapCut.Name];
+    public static readonly string[] Names = [Default.Name, Hormozi.Name, Minimal.Name, Neon.Name, CapCut.Name, Opus.Name];
 
     /// <summary>Resolve by name (case-insensitive); unknown/empty falls back to <see cref="Default"/>.</summary>
     public static SubtitleStylePreset Resolve(string? name) => name?.ToLowerInvariant() switch
@@ -66,6 +77,7 @@ public static class SubtitleStyles
         "minimal" => Minimal,
         "neon" => Neon,
         "capcut" => CapCut,
+        "opus" => Opus,
         _ => Default,
     };
 }

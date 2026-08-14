@@ -59,6 +59,9 @@ public static class SubtitleRenderer
         public required SKColor Accent;
         public required SKColor PopFill;
         public required SKColor? LineBox;
+        // OpusClip-style: dark translucent rounded box behind every word (boxed karaoke)
+        public required bool WordBoxes;
+        public required SKColor WordBoxColor;
 
         public static RenderSetup? Create(
             IReadOnlyList<SubtitleWord> words, SubtitleStyle? style, RenderOptions opts)
@@ -151,6 +154,8 @@ public static class SubtitleRenderer
                 // CapCut regular subtitles: semi-opaque box behind the whole block
                 // (RegularOutline carries the box colour, like ASS BorderStyle 3)
                 LineBox = preset.UseBox ? ParseAssColor(preset.RegularOutline) : null,
+                WordBoxes = preset.WordBoxes && preset.UseBox,
+                WordBoxColor = ParseAssColor(preset.WordBoxColor) ?? new SKColor(0, 0, 0, 153),
             };
         }
 
@@ -499,6 +504,7 @@ public static class SubtitleRenderer
         using var boxedTextPaint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = SKColors.Black };
         using var shadowPaint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = new SKColor(0, 0, 0, 120) };
         using var boxPaint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = st.BoxColor };
+        using var wordBoxPaint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = st.WordBoxColor };
 
         for (var l = 0; l < lines.Count; l++)
         {
@@ -531,8 +537,17 @@ public static class SubtitleRenderer
                 }
                 else
                 {
+                    // OpusClip-style: dark translucent box behind every spoken word
+                    if (st.WordBoxes)
+                    {
+                        var wtop = baseline + st.Metrics.Ascent - st.BoxPadY;
+                        var wbottom = baseline + st.Metrics.Descent + st.BoxPadY;
+                        var wrect = new SKRect(x - st.BoxPadX, wtop, x + st.Widths[i] + st.BoxPadX, wbottom);
+                        canvas.DrawRoundRect(wrect, st.Radius, st.Radius, wordBoxPaint);
+                    }
                     fillPaint.Color = st.Fills[i];
-                    canvas.DrawText(st.Disp[i], x, baseline, SKTextAlign.Left, st.Font, strokePaint);
+                    if (!st.WordBoxes)
+                        canvas.DrawText(st.Disp[i], x, baseline, SKTextAlign.Left, st.Font, strokePaint);
                     canvas.DrawText(st.Disp[i], x, baseline, SKTextAlign.Left, st.Font, fillPaint);
                     // Keyword emoji follows the word
                     if (st.Emojis[i] is { } emoji && st.EmojiFont is not null)
