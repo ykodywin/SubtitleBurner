@@ -29,6 +29,10 @@ public enum SubtitleAlign
 /// <param name="KeywordHighlight">OpusClip-style: words matched by the keyword predicate render in an accent colour.</param>
 /// <param name="KeywordColor">"#RRGGBB" — accent colour (default #FF4D4F).</param>
 /// <param name="KeywordEmoji">Draw a category emoji after highlighted keywords.</param>
+/// <param name="Animate">
+/// Smooth pop: the newly spoken word scales 1.28→1.0 over ~150ms (rendered as
+/// extra PNG states). Multiplies the overlay count — mind the karaoke word cap.
+/// </param>
 public record SubtitleStyle(
     string Preset = "default",
     string? FontName = null,
@@ -38,4 +42,5 @@ public record SubtitleStyle(
     SubtitleAlign? Align = null,
     bool? KeywordHighlight = null,
     string? KeywordColor = null,
-    bool? KeywordEmoji = null);
+    bool? KeywordEmoji = null,
+    bool? Animate = null);

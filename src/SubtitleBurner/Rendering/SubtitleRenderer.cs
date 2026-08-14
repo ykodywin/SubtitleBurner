@@ -201,6 +201,40 @@ public static class SubtitleRenderer
         return blocks;
     }
 
+    /// <summary>Pop animation: frames per word and their ease-out scales (last = steady).</summary>
+    private const int PopFrames = 4;
+    private static readonly float[] PopScales = [1.28f, 1.14f, 1.05f, 1.0f];
+    private const double PopDuration = 0.15;
+
+    /// <summary>Emit the overlay states for one spoken word: a single steady state,
+    /// or a pop-scale animation sequence + steady state when animate is on.</summary>
+    private static void EmitWordStates(
+        List<SubtitleOverlay> overlays, string outputDir, string baseName,
+        double s0, double e0, bool animate, Func<float, byte[]> renderAtScale)
+    {
+        if (!animate)
+        {
+            var png = Path.Combine(outputDir, $"{baseName}.png");
+            File.WriteAllBytes(png, renderAtScale(1f));
+            overlays.Add(new SubtitleOverlay(png, s0, e0));
+            return;
+        }
+        // The pop fits inside the word's own window (80% of it max) — never eats
+        // the next word's time
+        var animDur = Math.Min(PopDuration, (e0 - s0) * 0.8);
+        var frameDur = animDur / PopFrames;
+        for (var f = 0; f < PopFrames; f++)
+        {
+            var png = Path.Combine(outputDir, $"{baseName}_p{f}.png");
+            File.WriteAllBytes(png, renderAtScale(PopScales[f]));
+            var fs = s0 + f * frameDur;
+            overlays.Add(new SubtitleOverlay(png, fs, f + 1 < PopFrames ? fs + frameDur : s0 + animDur));
+        }
+        var steady = Path.Combine(outputDir, $"{baseName}.png");
+        File.WriteAllBytes(steady, renderAtScale(1f));
+        overlays.Add(new SubtitleOverlay(steady, s0 + animDur, e0));
+    }
+
     /// <summary>
     /// CapCut-style: all words of the block visible, the spoken word sits in a
     /// rounded box (black text inside). Null when fonts are unavailable.
@@ -227,18 +261,17 @@ public static class SubtitleRenderer
             // CapCut behavior: the whole block stays visible from its first word's
             // start to its last word's end — each state lasts until the next word
             // starts (no blinking in inter-word gaps); the yellow box just jumps.
+            var animate = style?.Animate == true;
             for (var w = 0; w < wordIndices.Count; w++)
             {
-                var png = Path.Combine(outputDir, $"{baseName}_ov{b}_{w}.png");
-                var bytes = RenderBlockPng(st, blk, lineWidths, wordIndices[w]);
-                File.WriteAllBytes(png, bytes);
                 var wi = wordIndices[w];
                 var s0 = Math.Max(words[wi].Start, start) - start;
                 var e0 = w + 1 < wordIndices.Count
                     ? Math.Max(words[wordIndices[w + 1]].Start, start) - start
                     : Math.Min(words[wi].End, end) - start;
                 if (e0 - s0 < 0.04) e0 = s0 + 0.04;
-                overlays.Add(new SubtitleOverlay(png, s0, e0));
+                EmitWordStates(overlays, outputDir, $"{baseName}_ov{b}_{w}", s0, e0, animate,
+                    scale => RenderBlockPng(st, blk, lineWidths, wi, scale));
             }
         }
         return overlays.Count == 0 ? null : overlays;
@@ -269,18 +302,17 @@ public static class SubtitleRenderer
 
             // Same state cadence as the boxed variant: each state lasts until the
             // next word starts — the visible prefix just grows word by word
+            var animate = style?.Animate == true;
             for (var w = 0; w < wordIndices.Count; w++)
             {
-                var png = Path.Combine(outputDir, $"{baseName}_ov{b}_{w}.png");
-                var bytes = RenderPopBlockPng(st, blk, lineWidths, wordIndices[w]);
-                File.WriteAllBytes(png, bytes);
                 var wi = wordIndices[w];
                 var s0 = Math.Max(words[wi].Start, start) - start;
                 var e0 = w + 1 < wordIndices.Count
                     ? Math.Max(words[wordIndices[w + 1]].Start, start) - start
                     : Math.Min(words[wi].End, end) - start;
                 if (e0 - s0 < 0.04) e0 = s0 + 0.04;
-                overlays.Add(new SubtitleOverlay(png, s0, e0));
+                EmitWordStates(overlays, outputDir, $"{baseName}_ov{b}_{w}", s0, e0, animate,
+                    scale => RenderPopBlockPng(st, blk, lineWidths, wi, scale));
             }
         }
         return overlays.Count == 0 ? null : overlays;
@@ -358,9 +390,10 @@ public static class SubtitleRenderer
     }
 
     /// <summary>Non-box karaoke state: words up to <paramref name="currentWord"/> are
-    /// visible (pop/accent fill + outline), future words are not drawn.</summary>
+    /// visible (pop/accent fill + outline), future words are not drawn.
+    /// <paramref name="popScale"/> scales the current word (pop animation frame).</summary>
     private static byte[] RenderPopBlockPng(
-        RenderSetup st, List<List<int>> lines, float[] lineWidths, int currentWord)
+        RenderSetup st, List<List<int>> lines, float[] lineWidths, int currentWord, float popScale = 1f)
     {
         var blockW = (int)Math.Ceiling(lineWidths.Max() + 2 * (st.BoxPadX + st.OutlinePx));
         var blockH = (int)Math.Ceiling(lines.Count * st.LineHeight + 2 * (st.BoxPadY + st.OutlinePx));
@@ -382,11 +415,23 @@ public static class SubtitleRenderer
             {
                 if (i <= currentWord)
                 {
+                    var popping = i == currentWord && popScale != 1f;
+                    if (popping)
+                    {
+                        canvas.Save();
+                        var cx = x + st.Widths[i] / 2f;
+                        var cy = baseline + (st.Metrics.Ascent + st.Metrics.Descent) / 2f;
+                        canvas.Translate(cx, cy);
+                        canvas.Scale(popScale);
+                        canvas.Translate(-cx, -cy);
+                    }
                     fillPaint.Color = st.IsKeyword[i] ? st.Accent : st.PopFill;
                     canvas.DrawText(st.Disp[i], x, baseline, SKTextAlign.Left, st.Font, strokePaint);
                     canvas.DrawText(st.Disp[i], x, baseline, SKTextAlign.Left, st.Font, fillPaint);
                     if (st.Emojis[i] is { } emoji && st.EmojiFont is not null)
                         canvas.DrawText(emoji, x + st.WordWidths[i] + st.EmojiGap, baseline, SKTextAlign.Left, st.EmojiFont, fillPaint);
+                    if (popping)
+                        canvas.Restore();
                 }
                 x += st.Widths[i] + st.SpaceW;
             }
@@ -440,7 +485,7 @@ public static class SubtitleRenderer
     }
 
     private static byte[] RenderBlockPng(
-        RenderSetup st, List<List<int>> lines, float[] lineWidths, int currentWord)
+        RenderSetup st, List<List<int>> lines, float[] lineWidths, int currentWord, float popScale = 1f)
     {
         var blockW = (int)Math.Ceiling(lineWidths.Max() + 2 * (st.BoxPadX + st.OutlinePx));
         var blockH = (int)Math.Ceiling(lines.Count * st.LineHeight + 2 * (st.BoxPadY + st.OutlinePx));
@@ -466,20 +511,33 @@ public static class SubtitleRenderer
                     var top = baseline + st.Metrics.Ascent - st.BoxPadY;
                     var bottom = baseline + st.Metrics.Descent + st.BoxPadY;
                     var rect = new SKRect(x - st.BoxPadX, top, x + st.Widths[i] + st.BoxPadX, bottom);
+                    // pop animation frame: scale box + text + emoji around the box center
+                    var popping = popScale != 1f;
+                    if (popping)
+                    {
+                        canvas.Save();
+                        canvas.Translate(rect.MidX, rect.MidY);
+                        canvas.Scale(popScale);
+                        canvas.Translate(-rect.MidX, -rect.MidY);
+                    }
                     // soft drop shadow, then the rounded box, then black text
                     canvas.DrawRoundRect(SKRect.Create(rect.Left, rect.Top + 3, rect.Width, rect.Height), st.Radius, st.Radius, shadowPaint);
                     canvas.DrawRoundRect(rect, st.Radius, st.Radius, boxPaint);
                     canvas.DrawText(st.Disp[i], x, baseline, SKTextAlign.Left, st.Font, boxedTextPaint);
+                    if (st.Emojis[i] is { } boxEmoji && st.EmojiFont is not null)
+                        canvas.DrawText(boxEmoji, x + st.WordWidths[i] + st.EmojiGap, baseline, SKTextAlign.Left, st.EmojiFont, fillPaint);
+                    if (popping)
+                        canvas.Restore();
                 }
                 else
                 {
                     fillPaint.Color = st.Fills[i];
                     canvas.DrawText(st.Disp[i], x, baseline, SKTextAlign.Left, st.Font, strokePaint);
                     canvas.DrawText(st.Disp[i], x, baseline, SKTextAlign.Left, st.Font, fillPaint);
+                    // Keyword emoji follows the word
+                    if (st.Emojis[i] is { } emoji && st.EmojiFont is not null)
+                        canvas.DrawText(emoji, x + st.WordWidths[i] + st.EmojiGap, baseline, SKTextAlign.Left, st.EmojiFont, fillPaint);
                 }
-                // Keyword emoji follows the word (inside the box when the word is boxed)
-                if (st.Emojis[i] is { } emoji && st.EmojiFont is not null)
-                    canvas.DrawText(emoji, x + st.WordWidths[i] + st.EmojiGap, baseline, SKTextAlign.Left, st.EmojiFont, fillPaint);
                 x += st.Widths[i] + st.SpaceW;
             }
         }
