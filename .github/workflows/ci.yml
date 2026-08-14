@@ -27,12 +27,15 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y fontconfig fonts-dejavu-core
 
-      # Burn integration tests resolve ffmpeg via PATH. Pinned to 8.0 (matches dev
-      # machines); setup-ffmpeg has no arm64 macOS binaries, so brew there
-      - uses: FedericoCarboni/setup-ffmpeg@v3
-        if: runner.os != 'macOS'
-        with:
-          ffmpeg-version: "8.0"
+      # Burn integration tests resolve ffmpeg via PATH — install per-OS
+      # (setup-ffmpeg action lacks arm64 macOS binaries and exact version pins)
+      - name: ffmpeg (ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y ffmpeg
+
+      - name: ffmpeg (windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
 
       - name: ffmpeg (macos)
         if: runner.os == 'macOS'

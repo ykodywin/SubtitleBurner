@@ -193,16 +193,13 @@ public static class SubtitleBurner
             }
         }, ct);
 
-        // -progress pipe:1 emits "out_time_ms=<microseconds>" lines
+        // -progress pipe:1 emits timing lines; the key name varies by ffmpeg version
         var stdoutTask = Task.Run(async () =>
         {
             while (await process.StandardOutput.ReadLineAsync(ct) is { } line)
             {
-                if (progress is not null && line.StartsWith("out_time_ms=", StringComparison.Ordinal)
-                    && long.TryParse(line["out_time_ms=".Length..], out var us) && totalSeconds > 0)
-                {
-                    progress.Report(Math.Clamp(us / 1_000_000.0 / totalSeconds, 0, 1));
-                }
+                if (progress is not null && TryParseProgress(line, totalSeconds, out var value))
+                    progress.Report(value);
             }
         }, ct);
 
@@ -210,6 +207,33 @@ public static class SubtitleBurner
         await Task.WhenAll(stderrTask, stdoutTask);
         progress?.Report(1.0);
         return (process.ExitCode, stderr.ToString().Trim());
+    }
+
+    /// <summary>
+    /// Parses one line of <c>ffmpeg -progress</c> output into a 0..1 fraction.
+    /// Accepts <c>out_time_ms=</c> (microseconds, ≤7.x), <c>out_time_us=</c> (8+; the
+    /// ms key was removed in 9) and <c>out_time=</c> (HH:MM:SS.micro, all versions).
+    /// </summary>
+    public static bool TryParseProgress(string line, double totalSeconds, out double value)
+    {
+        value = 0;
+        if (totalSeconds <= 0) return false;
+
+        double seconds;
+        if (line.StartsWith("out_time_ms=", StringComparison.Ordinal)
+            && long.TryParse(line["out_time_ms=".Length..], out var ms))
+            seconds = ms / 1_000_000.0;
+        else if (line.StartsWith("out_time_us=", StringComparison.Ordinal)
+            && long.TryParse(line["out_time_us=".Length..], out var us))
+            seconds = us / 1_000_000.0;
+        else if (line.StartsWith("out_time=", StringComparison.Ordinal)
+            && TimeSpan.TryParse(line["out_time=".Length..], out var ts))
+            seconds = ts.TotalSeconds;
+        else
+            return false;
+
+        value = Math.Clamp(seconds / totalSeconds, 0, 1);
+        return true;
     }
 
     private static List<SubtitleLine> ChunkWordsToLines(IReadOnlyList<SubtitleWord> words)
