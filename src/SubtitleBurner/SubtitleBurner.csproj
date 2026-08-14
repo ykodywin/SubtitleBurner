@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>SubtitleBurner</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Yahor</Authors>
+    <Description>CapCut-style burned-in subtitles for .NET: SkiaSharp karaoke/boxed/pop rendering + ffmpeg pipeline in one call.</Description>
+    <PackageTags>subtitles;karaoke;ffmpeg;skiasharp;capcut;video</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591: missing XML doc on publicly visible type or member -->
+    <WarningsAsErrors>CS1591</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="4.151.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <InternalsVisibleTo Include="SubtitleBurner.Tests" />
+  </ItemGroup>
+
+</Project>
