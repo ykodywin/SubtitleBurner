@@ -27,8 +27,11 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y fontconfig fonts-dejavu-core
 
-      # Burn integration tests resolve ffmpeg via PATH; it is preinstalled on
-      # all three GitHub runner images
+      # Burn integration tests resolve ffmpeg via PATH (not preinstalled on runners)
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
+
       - name: ffmpeg available
         shell: bash
         run: ffmpeg -version | head -1
